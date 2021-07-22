@@ -6,3 +6,8 @@ Any other amount (more or less) will cause the software to exit
 
 To install, you need python3-serial (ie, sudo apt install python3-serial)
 
+# TODO
+
+- Fix readme
+- Add service
+
