@@ -78,3 +78,9 @@ I see no difference in reaction times using wireless only. In fact, since switch
 
 If you find issues and are able to do bugfixes, please submit PRs for this project. If you're not able to fix, feel free to submit an issue on the project. No promises that I will fix it, especially if it's not related to the USB stick from Insteon (since I don't want to get the powerline USB one).
 
+# Future
+
+- Test use of built-in UART and provide instructions
+- Create `bridge.service` to simplify running this
+- Make SD card image for RPi allowing super easy setup (fire and forget essentially) with no network required
+- Build and sell kits? Probably not
