@@ -1,0 +1,9 @@
+[Unit]
+Description=Links two serial ports together
+After=syslog.target
+
+[Service]
+ExecStart=/opt/serial-bridge/bridge.py
+
+[Install]
+WantedBy=multi-user.target
