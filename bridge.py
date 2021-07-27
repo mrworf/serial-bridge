@@ -2,10 +2,10 @@
 
 import subprocess
 import re
-import logging
 import serial
 import select
 import sys
+import logging
 
 def find_ports():
   dmesg = subprocess.run(['dmesg'], stdout=subprocess.PIPE)
@@ -16,7 +16,7 @@ def find_ports():
   r = list(set(r))
 
   for serial in r:
-    print(f'Found {serial} port')
+    logging.info(f'Found {serial} port')
 
   if len(r) < 2:
     logging.error('Too few ports, cannot bridge')
@@ -31,7 +31,18 @@ def find_ports():
   if len(r) == 3: # Standard bridging
     r.remove('ttyAMA0')
 
+  r.sort() # So we're consistent
+
   return r
+
+def to_hex(data):
+  return ' '.join('{:02x}'.format(x) for x in data)
+
+def to_str(data):
+  return ''.join('%c' % (x if x > 31 and x < 127 else '.') for x in data)
+
+def splitdata(data):
+  return [data[i:i + 8] for i in range(0, len(data), 8)]
 
 def open_port(port):
   p = serial.Serial(f'/dev/{port}', baudrate=19200)
@@ -56,10 +67,13 @@ dst = open_port(dstport)
 
 ports = [src, dst]
 
+print(' %-33s | %-33s' % ('/dev/' + srcport, '/dev/' + dstport))
+print('-' * 71)
+
 while True:
   readable, writeable, exceptional = select.select(ports, [], ports)
   if len(exceptional):
-    print('Error detected on serial communication')
+    logging.warning('Error detected on serial communication')
     if src in exceptional:
       logging.info(f'Reopening {srcport}')
       try:
@@ -77,9 +91,18 @@ while True:
     ports = [src, dst]
     logging.info('Resuming bridging')
     continue
+
+  srcdata = ''
+  dstdata = ''
+
   if src in readable:
-    c = transfer_data(src, dst)
-    print('SRC->DST: ' + repr(c))
+    srcdata = splitdata(transfer_data(src, dst))
   if dst in readable:
-    c = transfer_data(dst, src)
-    print('SRC<-DST: ' + repr(c))
+    dstdata = splitdata(transfer_data(dst, src))
+
+  for row in range(0,max(len(srcdata), len(dstdata))):
+     adata = srcdata[row] if row < len(srcdata) else b''
+     bdata = dstdata[row] if row < len(dstdata) else b''
+
+     str = '%-23s ; %-8s | %-23s ; %-8s' % (to_hex(adata), to_str(adata), to_hex(bdata), to_str(bdata))
+     print(str)
