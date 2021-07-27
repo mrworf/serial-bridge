@@ -55,20 +55,22 @@ def transfer_data(a, b):
   b.write(data)
   return data
 
+logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
+
 r = find_ports()
 
 srcport = r[0]
 dstport = r[1]
 
-print(f'Bridging between {srcport} and {dstport}')
+logging.info(f'Bridging between {srcport} and {dstport}')
 
 src = open_port(srcport)
 dst = open_port(dstport)
 
 ports = [src, dst]
 
-print(' %-33s | %-33s' % ('/dev/' + srcport, '/dev/' + dstport))
-print('-' * 71)
+logging.debug(' %-33s | %-33s' % ('/dev/' + srcport, '/dev/' + dstport))
+logging.debug('-' * 71)
 
 while True:
   readable, writeable, exceptional = select.select(ports, [], ports)
@@ -105,4 +107,4 @@ while True:
      bdata = dstdata[row] if row < len(dstdata) else b''
 
      str = '%-23s ; %-8s | %-23s ; %-8s' % (to_hex(adata), to_str(adata), to_hex(bdata), to_str(bdata))
-     print(str)
+     logging.debug(str)
