@@ -15,6 +15,8 @@ def find_ports():
 
   r = list(set(r))
 
+  logging.debug('Found a total of %d serial ports', len(r))
+
   for serial in r:
     logging.info(f'Found {serial} port')
 
@@ -55,7 +57,13 @@ def transfer_data(a, b):
   b.write(data)
   return data
 
-logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
+if len(sys.argv) > 1 and sys.argv[1].lower() == '--debug':
+  level = logging.DEBUG
+  print('Debug logging enabled')
+else:
+  level = logging.INFO
+
+logging.basicConfig(format='%(levelname)s: %(message)s', level=level)
 
 r = find_ports()
 
