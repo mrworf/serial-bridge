@@ -61,25 +61,42 @@ def transfer_data(a, b):
 
 
 def main():
-  if len(sys.argv) > 1 and sys.argv[1].lower() == '--debug':
-    level = logging.DEBUG
-    print('Debug logging enabled')
-  else:
-    level = logging.INFO
+  level = logging.INFO
+  r = []
+  baudrates = []
+  
+  for i in range (0, len(sys.argv)):
+    if sys.argv[i].lower() == '--debug':
+      level = logging.DEBUG
+      print('Debug logging enabled')
+    if sys.argv[i].lower() == '-p':
+      i = i + 1
+      r.append(sys.argv[i])
+    if sys.argv[i].lower() == '-b':
+      i = i + 1
+      b.append(sys.argv[i])
+      
+    i = i + 1
+    
+  if ((len(r) != 0) and (len(r) != 2)
+    logging.error('need to specify exactly 0 or 2 ports')
+    sys.exit(255)
+    
+  if ((len(baudrates) != 0) and (len(baudrates) != 2)
+    logging.error('need to specify exactly 0 or 2 baud rates')
+    sys.exit(255)
 
   logging.basicConfig(format='%(levelname)s: %(message)s', level=level)
 
-  r = find_ports()
+  if not r:
+    r = find_ports()
+    
+  if not baudrates:
+    baudrates = [9600, 9600]
 
-  srcport = r[0]
-  dstport = r[1]
-
-  portnames = [srcport, dstport]
-  baudrates = [9600, 9600]
+  bridgePorts(ports, baudrates)
   
-  bridge(ports, baudrates)
-  
-def bridge(portnames, baudrates):
+def bridgePorts(portnames, baudrates):
   logging.info(f'Bridging between {portnames[0]} and {portnames[1]}')
 
   src = open_port(portnames[0], baudrates[0])
