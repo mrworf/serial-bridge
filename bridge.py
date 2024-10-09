@@ -15,6 +15,8 @@ def find_ports():
 
   r = list(set(r))
 
+  r = ['/dev/' + s for s in r]
+  
   logging.debug('Found a total of %d serial ports', len(r))
 
   for serial in r:
@@ -46,8 +48,8 @@ def to_str(data):
 def splitdata(data):
   return [data[i:i + 8] for i in range(0, len(data), 8)]
 
-def open_port(port):
-  p = serial.Serial(f'/dev/{port}', baudrate=19200)
+def open_port(port, baudrate):
+  p = serial.Serial(port, baudrate=baudrate)
   p.reset_input_buffer()
   p.reset_output_buffer()
   return p
@@ -57,62 +59,90 @@ def transfer_data(a, b):
   b.write(data)
   return data
 
-if len(sys.argv) > 1 and sys.argv[1].lower() == '--debug':
-  level = logging.DEBUG
-  print('Debug logging enabled')
-else:
+
+def main():
   level = logging.INFO
+  ports = []
+  baudrates = []
+  
+  for i in range (0, len(sys.argv)):
+    if sys.argv[i].lower() == '--debug':
+      level = logging.DEBUG
+      print('Debug logging enabled')
+    if sys.argv[i].lower() == '-p':
+      i = i + 1
+      ports.append(sys.argv[i])
+    if sys.argv[i].lower() == '-b':
+      i = i + 1
+      baudrates.append(sys.argv[i])
+      
+    i = i + 1
+    
+  if ((len(ports) != 0) and (len(ports) != 2)):
+    logging.error('need to specify exactly 0 or 2 ports')
+    sys.exit(255)
+    
+  if ((len(baudrates) != 0) and (len(baudrates) != 2)):
+    logging.error('need to specify exactly 0 or 2 baud rates')
+    sys.exit(255)
 
-logging.basicConfig(format='%(levelname)s: %(message)s', level=level)
+  logging.basicConfig(format='%(levelname)s: %(message)s', level=level)
 
-r = find_ports()
+  if not ports:
+    ports = find_ports()
+    
+  if not baudrates:
+    baudrates = [9600, 9600]
 
-srcport = r[0]
-dstport = r[1]
+  bridgePorts(ports, baudrates)
+  
+def bridgePorts(portnames, baudrates):
+  logging.info(f'Bridging between {portnames[0]}@{baudrates[0]} and {portnames[1]}@{baudrates[0]}')
 
-logging.info(f'Bridging between {srcport} and {dstport}')
+  src = open_port(portnames[0], baudrates[0])
+  dst = open_port(portnames[1], baudrates[1])
 
-src = open_port(srcport)
-dst = open_port(dstport)
+  ports = [src, dst]
+  
+  logging.debug(' %-33s | %-33s' % ('/dev/' + portnames[0], '/dev/' + portnames[1]))
+  logging.debug('-' * 71)
 
-ports = [src, dst]
+  while True:
+    readable, writeable, exceptional = select.select(ports, [], ports)
+    if len(exceptional):
+      logging.warning('Error detected on serial communication')
+      if src in exceptional:
+        logging.info(f'Reopening {portnames[0]}')
+        try:
+          src.close()
+        except:
+          logging.exception('Unable to close src')
+        src = open_port(portnames[0])
+      if dst in exceptional:
+        logging.info(f'Reopening {portnames[1]}')
+        try:
+          dst.close()
+        except:
+          logging.exception('Unable to close dst')
+        dst = open_port(portnames[1])
+      ports = [src, dst]
+      logging.info('Resuming bridging')
+      continue
 
-logging.debug(' %-33s | %-33s' % ('/dev/' + srcport, '/dev/' + dstport))
-logging.debug('-' * 71)
+    srcdata = ''
+    dstdata = ''
 
-while True:
-  readable, writeable, exceptional = select.select(ports, [], ports)
-  if len(exceptional):
-    logging.warning('Error detected on serial communication')
-    if src in exceptional:
-      logging.info(f'Reopening {srcport}')
-      try:
-        src.close()
-      except:
-        logging.exception('Unable to close src')
-      src = open_port(srcport)
-    if dst in exceptional:
-      logging.info(f'Reopening {dstport}')
-      try:
-        dst.close()
-      except:
-        logging.exception('Unable to close dst')
-      dst = open_port(dstport)
-    ports = [src, dst]
-    logging.info('Resuming bridging')
-    continue
+    if src in readable:
+      srcdata = splitdata(transfer_data(src, dst))
+    if dst in readable:
+      dstdata = splitdata(transfer_data(dst, src))
 
-  srcdata = ''
-  dstdata = ''
+    for row in range(0,max(len(srcdata), len(dstdata))):
+       adata = srcdata[row] if row < len(srcdata) else b''
+       bdata = dstdata[row] if row < len(dstdata) else b''
 
-  if src in readable:
-    srcdata = splitdata(transfer_data(src, dst))
-  if dst in readable:
-    dstdata = splitdata(transfer_data(dst, src))
+       str = '%-23s ; %-8s | %-23s ; %-8s' % (to_hex(adata), to_str(adata), to_hex(bdata), to_str(bdata))
+       logging.debug(str)
 
-  for row in range(0,max(len(srcdata), len(dstdata))):
-     adata = srcdata[row] if row < len(srcdata) else b''
-     bdata = dstdata[row] if row < len(dstdata) else b''
-
-     str = '%-23s ; %-8s | %-23s ; %-8s' % (to_hex(adata), to_str(adata), to_hex(bdata), to_str(bdata))
-     logging.debug(str)
+if __name__ == "__main__":
+  main()
